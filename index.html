@@ -1,0 +1,190 @@
+<html>
+    <head>
+        <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.5.1/jquery.min.js"></script>
+        <style>
+            * { margin: 0; padding: 0; font-weight: normal; font-size: 13px; }
+            body { font-family: 'Helvetica Neue'; margin: 50px; }
+            audio { display: none; margin-top: 10px; position: absolute; width: 270px; bottom: 15px; }
+            .player { position: relative; background: #aaa; width: 270px; height: 100px; padding: 15px; float: left; margin-right: 10px; }
+            .timers span, .timers { font-family: Monaco; font-size: 20px; }
+            .expiring { background: red; }
+        </style>
+        <script type="text/javascript">
+        
+            var channels = new Array();
+            var songs = new Array();
+        
+        	var channel_max = 10;										// number of channels
+        	audiochannels = new Array();
+        	for (a=0;a<channel_max;a++) {									// prepare the channels
+        		audiochannels[a] = new Array();
+        		audiochannels[a]['channel'] = new Audio();						// create a new audio object
+        		audiochannels[a]['finished'] = -1;							// expected end time for this channel
+        	}
+        	function play_multi_sound(s) {
+        	    if(channels[s] <= 0) {
+        	        return channels[s];
+        	    } else {
+        	        for (a=0;a<audiochannels.length;a++) {
+            			try {
+            			    thistime = new Date();
+                            if (audiochannels[a]['finished'] < thistime.getTime()) {			// is this channel finished?
+                            	audiochannels[a]['finished'] = thistime.getTime() + document.getElementById(s).duration*1000;
+                            	audiochannels[a]['channel'].src = document.getElementById(s).src;
+                            	audiochannels[a]['channel'].load();
+                            	audiochannels[a]['channel'].play();
+                            	break;
+                            }
+                        } catch (e) {
+                            console.log(e + " " + s);
+                        }
+            		}
+            		return a;
+        	    }
+        		
+        	}
+        </script>
+        <script type="text/javascript">
+        
+            
+            
+            function pad(number, length) {
+                var str = '' + number;
+                while (str.length < length) {
+                    str = '0' + str;
+                }
+                return str;
+            }
+            
+            function parseTime(time) {
+                var t = parseInt(time, 10);
+                var h = pad(Math.floor(t / 3600), 2);
+                t %= 3600;
+                var m = pad(Math.floor(t / 60), 2);
+                var s = pad(Math.floor(t % 60), 2);
+                return m + ":" + s;
+            }
+            
+            function startPlayer(number) {
+                try {
+                    //audiochannels[channels['audio' + number]].channel.currentTime = 0;
+                } catch(e) {
+                    
+                }
+                //$("#audio" + number)[0].play();
+                channels['audio' + number] = play_multi_sound("audio" + number);
+            }
+            
+            function stopPlayer(number) {
+                audiochannels[channels['audio' + number]].channel.pause();
+                audiochannels[channels['audio' + number]].channel.currentTime = 0;
+                updatePlayer(number);
+                delete window.channels['audio' + number];
+            }
+            
+            function updatePlayer(number) {
+                try {
+                    c = audiochannels[channels['audio' + number]].channel;
+                    var playerid = "#player-" + number;
+                    var audioid = "#audio" + number;
+                    var current = c.currentTime;
+                    var duration = c.duration;
+                    var remain = duration - current;
+                    $(playerid + " .elapsed").html(parseTime(current));
+                    $(playerid + " .remain").html(parseTime(remain));
+                    $(playerid + " .total").html(parseTime(duration));
+                    if(remain <= 30) {
+                        $(playerid).addClass('expiring');
+                    } else {
+                        $(playerid).removeClass('expiring');
+                    }
+                    /* @todo outpoint */
+                    /* (-1 to hit top of second?) */
+                    if(current >= (duration - songs[number].outpoint) - 1) {
+                        /* Trigger next player  */
+                        /* 3 players = mod 4, because first player is #1, not #0! */
+                        if(channels['audio' + ((number % 3) + 1)]) {
+                            
+                        } else {
+                            startPlayer((number % 3) + 1);
+                        }
+                    }
+                    if(current == duration) {
+                        stopPlayer(number);
+                    }
+                } catch(e) {
+                    //console.log(number + " " + e);
+                }
+                
+            }
+            
+            function seguePlayer(number) {
+                try {
+                    c = audiochannels[channels['audio' + number]].channel;
+                    c.currentTime = c.duration - songs[number].outpoint - 10;
+                } catch(e) {
+                    console.log(e);
+                }
+            }
+            
+            setInterval(function() {   
+                updatePlayer(1);
+                updatePlayer(2);
+                updatePlayer(3);
+            }, 50);
+            
+            $(document).ready(function($) {
+                $.getJSON('play.json', function(data) {
+                    songs[1] = data.song1;
+                    songs[2] = data.song2;
+                    songs[3] = data.song3;
+                    $("#player-1 div.artist").html(data.song1.artist);
+                    $("#player-1 div.song").html(data.song1.title);
+                    $("#player-1 audio").attr('src', data.song1.file);
+                    $("#player-2 div.artist").html(data.song2.artist);
+                    $("#player-2 div.song").html(data.song2.title);
+                    $("#player-2 audio").attr('src', data.song2.file);
+                    $("#player-3 div.artist").html(data.song3.artist);
+                    $("#player-3 div.song").html(data.song3.title);
+                    $("#player-3 audio").attr('src', data.song3.file);
+                });
+                $("#player-1 .play").click(function() { startPlayer(1); });
+                $("#player-2 .play").click(function() { startPlayer(2); });
+                $("#player-3 .play").click(function() { startPlayer(3); });
+                $("#player-1 .stop").click(function() { stopPlayer(1); });
+                $("#player-2 .stop").click(function() { stopPlayer(2); });
+                $("#player-3 .stop").click(function() { stopPlayer(3); }); 
+                $("#player-1 .segue").click(function() { seguePlayer(1); });
+                $("#player-2 .segue").click(function() { seguePlayer(2); });
+                $("#player-3 .segue").click(function() { seguePlayer(3); });
+            });
+            
+        </script>
+    </head>
+    <body>
+        <div class="player" id="player-1">
+            <h2>Player 1</h2>
+            <div class="artist"></div>
+            <div class="song"></div>
+            <div class="timers"><span class="elapsed">00:00</span> / <span class="remain">00:00</span> / <span class="total">00:00</span></div>
+            <div class="controls"><a class="play" href="#">Play</a> / <a class="stop" href="#">Stop</a> / <a class="segue" href="#">Segue</a></div>
+            <div><audio id="audio1" src="" controls="false"></div>
+        </div>
+        <div class="player" id="player-2">
+            <h2>Player 2</h2>
+            <div class="artist"></div>
+            <div class="song"></div>
+            <div class="timers"><span class="elapsed">00:00</span> / <span class="remain">00:00</span> / <span class="total">00:00</span></div>
+            <div class="controls"><a class="play" href="#">Play</a> / <a class="stop" href="#">Stop</a> / <a class="segue" href="#">Segue</a></div>
+            <div><audio id="audio2" src="jag.mp3" controls="false"></div>
+        </div>
+        <div class="player" id="player-3">
+            <h2>Player 3</h2>
+            <div class="artist"></div>
+            <div class="song"></div>
+            <div class="timers"><span class="elapsed">00:00</span> / <span class="remain">00:00</span> / <span class="total">00:00</span></div>
+            <div class="controls"><a class="play" href="#">Play</a> / <a class="stop" href="#">Stop</a> / <a class="segue" href="#">Segue</a></div>
+            <div><audio id="audio3" src="jag.mp3" controls="false"></div>
+        </div>
+    </body>
+</html>

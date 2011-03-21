@@ -1,0 +1,24 @@
+{
+    "hello" : "world",
+    "song1": {
+        "artist": "Aloe Blacc",
+        "title": "I Need A Dollar",
+        "file": "a.mp3",
+        "inpoint": 0,
+        "outpoint" : 5
+    },
+    "song2": {
+        "artist": "Far East Movement",
+        "title": "Like A G6",
+        "file": "b.mp3",
+        "inpoint": 0,
+        "outpoint": 2
+    },
+    "song3": {
+        "artist": "Everything Everything",
+        "title": "Photoshop Handsome",
+        "file": "c.mp3",
+        "inpoint": 0,
+        "outpoint": 5
+    }
+}
